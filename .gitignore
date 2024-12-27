@@ -1,0 +1,8 @@
+data/destination.duckdbvenv/
+*.pyc
+__pycache__/
+*.duckdb
+venv/
+*.pyc
+__pycache__/
+*.duckdb

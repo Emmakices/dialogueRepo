@@ -1,0 +1,19 @@
+services:
+  toubib:
+    image: dialoguemd/toubib:latest
+    ports:
+      - "8000:8000"  # Expose port 8000 to the host
+    networks:
+      - toubib_network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 10s
+      timeout: 10s
+      retries: 3
+      start_period: 3s
+      start_interval: 5s
+
+networks:
+  toubib_network:
+    name: toubib_network
+    driver: bridge
