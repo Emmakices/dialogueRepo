@@ -1,21 +1,21 @@
 # Start from a modern Python image
-FROM python:3.11-slim
+FROM python:3.11-slim AS base
 
 # Set working directory
-WORKDIR /src
+WORKDIR /app
 
-# Copy application code
-COPY src src
+# Copy application requirements and source code
 COPY requirements.txt .
+COPY src /app/src
 
 # Run ls to verify file structure
-RUN ls -alR
+RUN ls -alR /app
 
 # Install Python dependencies
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install DuckDB CLI (v0.9.0) for database interaction
-FROM python:3.10-slim
+FROM base AS final
 
 RUN apt-get update && apt-get install -y \
     wget \

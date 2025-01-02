@@ -106,3 +106,31 @@ We will evaluate:
 #### Scope
 
 You are welcome to use whatever tools, libraries, or other resources that are available to you to solve the challenge, as long as the whole solution can be submitted to the git repository and we can run it using docker after you submit. If you know Python please use it; otherwise you can use whatever language you're most comfortable with!
+
+
+### Instructions for Updated Makefile Commands
+I have updated the Makefile to better suit the local and Docker-based workflows. I tested the script locally using vocode terminal, the command works on PowerShell. Below are the details of the commands and how to use them:
+
+•	Build the Docker Image
+Command: “make build”
+This command builds the Docker image for the project. It ensures that all dependencies and configurations are set up correctly.
+
+•	Initialize the Database Schema
+Command: “make init-db”
+This command runs the database schema initialization script in the container. 
+
+•	Start the API Service
+Command: “make run-api-service”
+This starts the API service using docker-compose.
+
+•	Run the Connector
+Command: “make run”
+This runs the connector and fetch data from the API and populate the database. The script is scheduled to run continuously, but I commented it out for testing purpose, if you want to see how the  scheduling works, you can uncomment it.
+
+•	Check Database Content
+Command: “make check-db”
+This command uses the DuckDB CLI to inspect the content of the database. Ensure the database file exists and is mounted to /data/destination.duckdb. (check my makefile to see how mine was mounted)
+
+•	Stop All Services
+Command: “make stop”
+This stops all running containers and services.

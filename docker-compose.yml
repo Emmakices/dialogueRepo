@@ -1,3 +1,5 @@
+version: '3.8'
+
 services:
   toubib:
     image: dialoguemd/toubib:latest
@@ -12,6 +14,19 @@ services:
       retries: 3
       start_period: 3s
       start_interval: 5s
+
+  connector:
+    build:
+      context: .
+    image: toubib_connector:latest
+    environment:
+      - API_BASEURL=http://toubib:8000
+      - DESTINATION_DUCKDB_PATH=/data/destination.duckdb
+    volumes:
+      - ./data:/data
+    networks:
+      - toubib_network
+    command: python src/connector.py  # Automatically runs the connector
 
 networks:
   toubib_network:

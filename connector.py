@@ -15,12 +15,18 @@ API_URL = "http://localhost:8000/v1/patients"
 DB_PATH = "data/destination.duckdb"
 
 # API Pagination Limit
-LIMIT = 100  
+LIMIT = 100
 
 
 def fetch_page(offset):
     """
-    Fetch a single page of data from the API.
+    Fetch a single page of patient data from the API.
+
+    Parameters:
+        offset (int): The starting offset for pagination.
+
+    Returns:
+        dict: JSON response from the API containing the data or None if the request fails.
     """
     try:
         response = requests.get(
@@ -32,41 +38,23 @@ def fetch_page(offset):
                 "sort_dir": "asc",
             }
         )
-        response.raise_for_status()  
+        response.raise_for_status()
         return response.json()
     except requests.RequestException as e:
         logging.error(f"Error fetching data for offset={offset}", exc_info=True)
         return None
 
 
-def reset_table(conn):
+def store_data(batch_data, conn):
     """
-    Drop and recreate the `patients` table to ensure schema alignment.
-    """
-    try:
-        conn.execute("DROP TABLE IF EXISTS patients")
-        conn.execute("""
-            CREATE TABLE patients (
-                id INTEGER PRIMARY KEY,
-                first_name VARCHAR,
-                last_name VARCHAR,
-                email VARCHAR,
-                date_of_birth VARCHAR,
-                created_at VARCHAR,
-                updated_at VARCHAR,
-                total_visits INTEGER,
-                timestamp TIMESTAMP
-            )
-        """)
-        print("Patients table reset successfully.")
-        print(conn.execute("DESCRIBE patients").fetchdf())
-    except Exception as e:
-        logging.error("Error resetting table schema", exc_info=True)
+    Insert or update patient data in the DuckDB database in batches.
 
+    Parameters:
+        batch_data (list[dict]): A list of dictionaries containing patient data.
+        conn (duckdb.DuckDBPyConnection): The DuckDB connection object.
 
-def store_data(batch_data, conn, initialized):
-    """
-    Store data in the DuckDB database in batches.
+    Returns:
+        None
     """
     if not batch_data:
         logging.error("No data to store.")
@@ -77,44 +65,57 @@ def store_data(batch_data, conn, initialized):
         df = pd.DataFrame(batch_data)
         df['timestamp'] = datetime.now()
 
-        # Debugging: Print batch data
         print(f"store_data called. Batch DataFrame:\n{df.head()}")
-
-        # Reset table if not initialized
-        if not initialized:
-            reset_table(conn)
 
         # Register the DataFrame
         conn.register("patients_temp", df)
 
-        # Perform upsert (Update existing records and insert new ones)
-        sql = """
+        # Insert into patients table
+        sql_patients = """
             INSERT INTO patients
-            SELECT * FROM patients_temp
+            SELECT id, first_name, last_name, email, date_of_birth,
+                   created_at, updated_at, total_visits, timestamp
+            FROM patients_temp
             ON CONFLICT (id) DO UPDATE
             SET first_name = excluded.first_name,
                 last_name = excluded.last_name,
                 email = excluded.email,
                 updated_at = excluded.updated_at,
                 total_visits = excluded.total_visits,
-                timestamp = excluded.timestamp
+                timestamp = excluded.timestamp;
         """
-        print(f"Executing SQL: {sql}")
-        conn.execute(sql)
-        print("Upsert completed successfully.")
+        print(f"Executing SQL for patients: {sql_patients}")
+        conn.execute(sql_patients)
+        print("Upsert completed for patients table.")
+
+        # Insert into history table
+        sql_history = """
+            INSERT INTO history
+            SELECT id, first_name, last_name, email, date_of_birth,
+                   created_at, updated_at, total_visits, timestamp, CURRENT_TIMESTAMP
+            FROM patients_temp;
+        """
+        print(f"Executing SQL for history: {sql_history}")
+        conn.execute(sql_history)
+        print("Insert completed for history table.")
 
     except Exception as e:
         logging.error("Error storing batch data", exc_info=True)
+        print(f"Error: {e}")
 
 
 def replicate_data():
     """
-    Fetch and store patient data with parallel processing and batch inserts.
+    Fetch and store patient data using parallel processing and batch inserts.
+
+    This function orchestrates the fetching of data from the API and storing it into
+    the DuckDB database.
+
+    Returns:
+        None
     """
-    initialized = False
     conn = duckdb.connect(DB_PATH)
 
-    # Debugging
     print(f"replicate_data called with connection: {conn}")
 
     # Fetch the first page to get total records
@@ -143,12 +144,11 @@ def replicate_data():
     for i in range(0, len(all_data), batch_size):
         batch = all_data[i:i + batch_size]
         print(f"Inserting batch: {batch[:5]}")  # Debugging
-        store_data(batch, conn, initialized)
-        initialized = True  # Reset table only during the first batch
+        store_data(batch, conn)
 
     print("Data replication completed successfully.")
 
 
 if __name__ == "__main__":
-    print("Starting data replication...")
+    print("Starting one-time data replication...")
     replicate_data()

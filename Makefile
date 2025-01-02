@@ -1,19 +1,27 @@
+# Build the Docker image
 build:
 	docker build -t toubib_connector .
 
+# Start the API service using Docker Compose
+start-api:
+	docker-compose up -d
+
+# Stop all services (API and Connector)
+stop:
+	docker-compose down
+
+# Initialize the database schema locally
 init-db:
-	docker run --rm --interactive --tty \
-	-v ./data:/data \
-	toubib_connector python src/init_db.py
+	python init_db.py
 
-# Run the Docker container with the given API_BASEURL.
-# The container runs in interactive mode (so you can see the logs), and will self-
+# Run the connector locally to fetch data from the API
 run:
-	docker run --rm --interactive --tty \
-	--network toubib_network \
-	-e API_BASEURL="http://toubib:8000" \
-	-v ./data:/data \
-	toubib_connector
+	python connector.py
 
-run-api-service:
-	docker compose up
+# Check the database content using DuckDB CLI (local pathway)
+check-db:
+	C:/Users/Eco/Desktop/duckdb.exe data/destination.duckdb
+
+# Clean up data files
+clean-data:
+	Remove-Item -Path ./data/* -Force
